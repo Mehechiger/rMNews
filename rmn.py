@@ -20,6 +20,7 @@ pdf_options = {
     'quiet': ''
 }  # pdf gen options
 stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
+src = None  # source build
 date = time = None  # date and time
 retry = 50  # max time of download retry
 
@@ -30,6 +31,7 @@ def path_check(path):
 
 
 def acq_datetime():
+    global date, time
     date, time = datetime.now().strftime('%m-%d\t%Hh%M').split("\t")
 
 
@@ -49,10 +51,43 @@ def saveas_pdf(title, url, path):
             return False
 
 
+def load_pending():
+    global pending_artls
+    try:
+        with open(rpath+"pending_artls", "r") as f:
+            pending_artls = set(tuple(line.split("\t"))
+                                for line in f.read().split("\n")[:-1])
+    except FileNotFoundError:
+        pass
+
+
+def dump_pending():
+    with open(rpath+"pending_artls", "w") as f:
+        f.write("\n".join("\t".join(it) for it in pending_artls))
+
+
+def download_artl(title, url, site_name):
+    """
+    if saveas_pdf("%s %s" % (time, artl.title), artl.url, "%s/downloaded/%s %s/" % (rpath, date, site_name)):
+        print("%s %s downloaded" % (time, artl.title))
+    else:
+        stashed_artls[("%s %s" % (time, artl.title),
+                       artl.url, site_name)] += 1
+        print("%s %s stashed" % (time, artl.title))
+    """
+    global stashed_artls
+    if saveas_pdf(title, url, "%s/downloaded/%s %s/" % (rpath, date, site_name)):
+        try:
+            stashed_artls.pop((title, url, site_name))
+        except KeyError:
+            pass
+        print("%s downloaded" % title)
+    else:
+        stashed_artls[(title, url, site_name)] += 1
+        print("%s stashed" % title)
+
+
 def extr_src(lan, site_name, site_url):
-    """
-    to be separated into extr_src() and download_artl()
-    """
     src = newspaper.build(site_url, language=lan, memoize_articles=False)
     """
     write src.articles to file for failsafe
@@ -64,14 +99,11 @@ def extr_src(lan, site_name, site_url):
         except:
             print("error, passed")
             continue
-        if saveas_pdf("%s %s" % (time, artl.title), artl.url, "%s/downloaded/%s %s/" % (rpath, date, site_name)):
-            print("%s %s downloaded" % (time, artl.title))
-        else:
-            stashed_artls[("%s %s" % (time, artl.title), artl.url, site_name)]
-            print("%s %s stashed" % (time, artl.title))
+        download_artl("%s %s" % (time, artl.title), artl.url, site_name)
 
 
 def load_stashed():
+    global stashed_artls
     try:
         with open(rpath+"stashed_artls", "r") as f:
             stashed_artls = defaultdict(int, {tuple(line.split("\t\t")[0].split("\t")): int(line.split(
@@ -80,7 +112,7 @@ def load_stashed():
         pass
 
 
-def save_stashed():
+def dump_stashed():
     with open(rpath+"stashed_artls", "w") as f:
         f.write("\n".join("%s\t\t%s" % ("\t".join(k), str(v))
                           for k, v in stashed_artls.items()))
@@ -100,19 +132,14 @@ if __name__ == "__main__":
 
     # retry stashed articles
     for title, url, site_name in stashed_artls.copy():
-        if saveas_pdf(title, url, "%s/downloaded/%s %s/" % (rpath, date, site_name)):
-            stashed_artls.pop((title, url, site_name))
-            print("%s downloaded" % title)
-        else:
-            stashed_artls[(title, url, site_name)] += 1
-            print("%s stashed" % title)
-    save_stashed()
+        download_artl(title, url, site_name)
+    dump_stashed()
 
     for site in sites:
         acq_datetime()
         extr_src(*site)
 
         # write stashed articles to file
-        save_stashed()
+        dump_stashed()
 
         print(rmapi("ls", "cd psdt", "ls"))
