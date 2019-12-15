@@ -1,2 +1,6 @@
 # rMNews
- 
+
+**Dependencies**
+
+juruen/rmapi
+
