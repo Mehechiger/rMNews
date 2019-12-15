@@ -53,7 +53,6 @@ def extr_src(lan, site_name, site_url):
     """
     to be separated into extr_src() and download_artl()
     """
-    newspaper.Config().browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
     src = newspaper.build(site_url, language=lan, memoize_articles=False)
     """
     write src.articles to file for failsafe
@@ -72,7 +71,23 @@ def extr_src(lan, site_name, site_url):
             print("%s %s stashed" % (time, artl.title))
 
 
+def load_stashed():
+    try:
+        with open(rpath+"stashed_artls", "r") as f:
+            stashed_artls = defaultdict(int, {tuple(line.split("\t\t")[0].split("\t")): int(line.split(
+                "\t\t")[1]) for line in f.read().split("\n")[:-1] if int(line.split("\t\t")[1]) < retry})
+    except FileNotFoundError:
+        pass
+
+
+def save_stashed():
+    with open(rpath+"stashed_artls", "w") as f:
+        f.write("\n".join("%s\t\t%s" % ("\t".join(k), str(v))
+                          for k, v in stashed_artls.items()))
+
+
 if __name__ == "__main__":
+    newspaper.Config().browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 
     acq_datetime()
 
@@ -81,12 +96,7 @@ if __name__ == "__main__":
         sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
 
     # read stashed articles from file
-    try:
-        with open(rpath+"stashed_artls", "r") as f:
-            stashed_artls = defaultdict(int, {tuple(line.split("\t\t")[0].split("\t")): int(line.split(
-                "\t\t")[1]) for line in f.read().split("\n")[:-1] if int(line.split("\t\t")[1]) < retry})
-    except FileNotFoundError:
-        pass
+    load_stashed()
 
     # retry stashed articles
     for title, url, site_name in stashed_artls.copy():
@@ -96,14 +106,13 @@ if __name__ == "__main__":
         else:
             stashed_artls[(title, url, site_name)] += 1
             print("%s stashed" % title)
+    save_stashed()
 
     for site in sites:
         acq_datetime()
         extr_src(*site)
 
         # write stashed articles to file
-        with open(rpath+"stashed_artls", "w") as f:
-            f.write("\n".join("%s\t\t%s" % ("\t".join(k), str(v))
-                              for k, v in stashed_artls.items()))
+        save_stashed()
 
         print(rmapi("ls", "cd psdt", "ls"))
