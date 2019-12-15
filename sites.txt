@@ -1,0 +1,2 @@
+zh	果壳	https://www.guokr.com
+zh	知乎日报	https://daily.zhihu.com
