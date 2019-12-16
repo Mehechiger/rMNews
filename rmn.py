@@ -19,11 +19,13 @@ pdf_options = {
     'page-height': '7.2in',
     'page-width': '5.4in',
     'encoding': 'UTF-8',
-    'dpi': '400',
+    'dpi': '300',
+    'grayscale': '',
     'quiet': ''
 }  # pdf gen options
 stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
 pending_artls = set()  # pending articles
+downloaded_artls = defaultdict(int)  # articles downloaded in the past
 date = time = None  # date and time
 retry = 50  # max time of download retry
 n_config = newspaper.Config()
@@ -63,8 +65,9 @@ def download_artls(artls):
                 return False
 
     def download_artl(title, url, site_name):
-        global stashed_artls, pending_artls
+        global stashed_artls, pending_artls, downloaded_artls
         if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
+            downloaded_artls[url] = 1
             try:
                 pending_artls.remove((title, url, site_name))
             except KeyError:
@@ -77,10 +80,15 @@ def download_artls(artls):
         else:
             stashed_artls[(title, url, site_name)] += 1
             print("%s stashed" % title)
-        return
 
     for title, url, site_name in artls.copy():
+        if downloaded_artls[url]:
+            continue
         download_artl(title, url, site_name)
+
+    dump_pending()
+    dump_stashed()
+    dump_downloaded()
 
 
 def extr_src(lan, site_name, site_url):
@@ -101,7 +109,11 @@ def extr_src(lan, site_name, site_url):
         pending_artls.add((artl.title, artl.url, site_name))
     dump_pending()
     download_artls(pending_artls)
-    dump_pending()
+
+
+"""
+combine all the load/dump funcs
+"""
 
 
 def load_pending():
@@ -132,6 +144,20 @@ def dump_stashed():
         pickle.dump(stashed_artls, f)
 
 
+def load_downloaded():
+    global downloaded_artls
+    try:
+        with open(cwpath+"downloaded_artls", "rb") as f:
+            downloaded_artls = pickle.load(f)
+    except FileNotFoundError:
+        pass
+
+
+def dump_downloaded():
+    with open(cwpath+"downloaded_artls", "wb") as f:
+        pickle.dump(downloaded_artls, f)
+
+
 if __name__ == "__main__":
 
     acq_datetime()
@@ -146,22 +172,20 @@ if __name__ == "__main__":
     with open(cwpath+"sites.txt", "r") as f:
         sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
 
+    # load downloaded articles from file
+    load_downloaded()
+
     # read pending articles from file
     # retry pending articles
     load_pending()
     download_artls(pending_artls)
-    dump_pending()
     # read stashed articles from file
     # retry stashed articles
     load_stashed()
     download_artls(stashed_artls)
-    dump_stashed()
 
     for site in sites:
         acq_datetime()
         extr_src(*site)
-
-        # write stashed articles to file
-        dump_stashed()
 
         print(rmapi("ls", "cd psdt", "ls"))
