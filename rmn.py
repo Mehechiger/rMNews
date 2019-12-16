@@ -9,7 +9,7 @@ import os
 import shutil
 import re
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 import _pickle as pickle
 
 
@@ -53,10 +53,6 @@ def acq_datetime():
     date, time = datetime.now().strftime('%m-%d\t%Hh%M').split("\t")
 
 
-def rmapi(*cmds):
-    return Popen("echo '%s' | %s" % ("\n".join(cmds), rmapi_loc), stdout=PIPE, shell=True).stdout.read()
-
-
 def chdir(path, retry=10):
     for i in range(retry):
         os.chdir(path)
@@ -75,6 +71,10 @@ def rmtree(path, retry=10):
     exit()
 
 
+def rmapi(*cmds):
+    return Popen("echo '%s' | %s" % ("\n".join(cmds), rmapi_loc), stdout=PIPE, shell=True).stdout.read()
+
+
 def r_mput(retry=10):
     path = cwpath+"downloaded/"
     if not os.path.isdir(path):
@@ -89,6 +89,41 @@ def r_mput(retry=10):
 
     rmtree(path)
     chdir(cwpath)
+
+
+def r_rmtree(r_path, retry=10):
+    """
+    """
+    k = rmapi("cd \"News/03-11 果壳\"", "ls")
+    print(k.decode(encoding="utf-8"))
+    """
+    """
+    pass
+
+
+def r_del_old(n_days=7):
+    """
+    """
+    r_rmtree("k")
+    """
+    """
+    date_old = datetime.strptime(date, "%m-%d")-timedelta(days=n_days)
+
+    news_dirs = re.compile(
+        b"(?#\[d\]\t)\d\d-\d\d.*(?#\n)").findall(rmapi("cd News", "ls"))
+
+    news_days = [news_dir[:5] for news_dir in news_dirs]
+
+    to_del = (news_dirs[i] for i in range(len(news_dirs)) if datetime.strptime(
+        news_days[i].decode(encoding="utf-8"), "%m-%d") < date_old)
+
+    """
+    """
+    exit()
+    """
+    """
+    for news_dir in to_del:
+        r_rmtree("News/"+news_dir)
 
 
 def download_artls(artls):
@@ -172,6 +207,7 @@ if __name__ == "__main__":
 
     """
     """
+    r_del_old()
     exit()
     """
     """
