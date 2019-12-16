@@ -6,6 +6,7 @@ import newspaper
 from newspaper import news_pool
 import pdfkit
 import os
+from concurrent import futures
 from collections import defaultdict
 from datetime import datetime
 import _pickle as pickle
@@ -13,7 +14,7 @@ import _pickle as pickle
 
 rmapi_loc = "go run github.com/juruen/rmapi"  # rmapi location
 sites = []  # list of sites
-rpath = "./"  # working path
+cwpath = os.getcwd()+"/"  # working path
 pdf_options = {
     'page-height': '7.2in',
     'page-width': '5.4in',
@@ -49,44 +50,37 @@ def rmapi(*cmds):
     return Popen("echo '%s' | %s" % ("\n".join(cmds), rmapi_loc), stdout=PIPE, shell=True).stdout.read()
 
 
-def saveas_pdf(title, url, path):
-    path_check(path)
-    try:
-        pdfkit.from_url(url, path+title+".pdf", pdf_options)
-        return True
-    except OSError:
-        if os.path.exists(path+title+".pdf"):
-            return True
-        else:
-            return False
-
-
-def load_pending():
-    global pending_artls
-    try:
-        with open(rpath+"pending_artls", "rb") as f:
-            pending_artls = pickle.load(f)
-    except FileNotFoundError:
-        pass
-
-
-def dump_pending():
-    with open(rpath+"pending_artls", "wb") as f:
-        pickle.dump(pending_artls, f)
-
-
-def download_artl(title, url, site_name):
-    global stashed_artls, pending_artls
-    if saveas_pdf(title, url, "%s/downloaded/%s %s/" % (rpath, date, site_name)):
+def download_artls(artls):
+    def saveas_pdf(title, url, path):
+        path_check(path)
         try:
-            pending_artls.remove((title, url, site_name))
-            stashed_artls.pop((title, url, site_name))
-        except KeyError:
-            pass
-        print("%s downloaded" % title)
-    else:
-        stashed_artls[(title, url, site_name)] += 1
-        print("%s stashed" % title)
+            pdfkit.from_url(url, path+title+".pdf", pdf_options)
+            return True
+        except OSError:
+            if os.path.exists(path+title+".pdf"):
+                return True
+            else:
+                return False
+
+    def download_artl(title, url, site_name):
+        global stashed_artls, pending_artls
+        if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
+            try:
+                pending_artls.remove((title, url, site_name))
+            except KeyError:
+                pass
+            try:
+                stashed_artls.pop((title, url, site_name))
+            except KeyError:
+                pass
+            print("%s %s downloaded" % (time, title))
+        else:
+            stashed_artls[(title, url, site_name)] += 1
+            print("%s stashed" % title)
+        return
+
+    for title, url, site_name in artls.copy():
+        download_artl(title, url, site_name)
 
 
 def extr_src(lan, site_name, site_url):
@@ -104,24 +98,37 @@ def extr_src(lan, site_name, site_url):
             except:
                 print("error, passed")
                 continue
-        pending_artls.add(("%s %s" % (time, artl.title), artl.url, site_name))
+        pending_artls.add((artl.title, artl.url, site_name))
     dump_pending()
-    for title, url, site_name in pending_artls.copy():
-        download_artl(title, url, site_name)
+    download_artls(pending_artls)
     dump_pending()
+
+
+def load_pending():
+    global pending_artls
+    try:
+        with open(cwpath+"pending_artls", "rb") as f:
+            pending_artls = pickle.load(f)
+    except FileNotFoundError:
+        pass
+
+
+def dump_pending():
+    with open(cwpath+"pending_artls", "wb") as f:
+        pickle.dump(pending_artls, f)
 
 
 def load_stashed():
     global stashed_artls
     try:
-        with open(rpath+"stashed_artls", "rb") as f:
+        with open(cwpath+"stashed_artls", "rb") as f:
             stashed_artls = pickle.load(f)
     except FileNotFoundError:
         pass
 
 
 def dump_stashed():
-    with open(rpath+"stashed_artls", "wb") as f:
+    with open(cwpath+"stashed_artls", "wb") as f:
         pickle.dump(stashed_artls, f)
 
 
@@ -130,26 +137,24 @@ if __name__ == "__main__":
     acq_datetime()
 
     """
+    """
+    """
     exit()
-    """
-    """
     """
 
     # read list of sites from file
-    with open(rpath+"sites.txt", "r") as f:
+    with open(cwpath+"sites.txt", "r") as f:
         sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
 
     # read pending articles from file
     # retry pending articles
     load_pending()
-    for title, url, site_name in pending_artls.copy():
-        download_artl(title, url, site_name)
+    download_artls(pending_artls)
     dump_pending()
     # read stashed articles from file
     # retry stashed articles
     load_stashed()
-    for title, url, site_name in stashed_artls.copy():
-        download_artl(title, url, site_name)
+    download_artls(stashed_artls)
     dump_stashed()
 
     for site in sites:
