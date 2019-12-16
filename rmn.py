@@ -7,6 +7,7 @@ import pdfkit
 import os
 from collections import defaultdict
 from datetime import datetime
+import _pickle as pickle
 
 
 rmapi_loc = "go run github.com/juruen/rmapi"  # rmapi location
@@ -61,9 +62,23 @@ def load_pending():
         pass
 
 
+def load_pending():
+    global pending_artls
+    try:
+        with open(rpath+"pending_artls", "rb") as f:
+            pending_artls = pickle.load(f)
+    except FileNotFoundError:
+        pass
+
+
 def dump_pending():
     with open(rpath+"pending_artls", "w") as f:
         f.write("\n".join("\t".join(it) for it in pending_artls))
+
+
+def dump_pending():
+    with open(rpath+"pending_artls", "wb") as f:
+        pickle.dump(pending_artls, f)
 
 
 def download_artl(title, url, site_name):
@@ -83,9 +98,6 @@ def download_artl(title, url, site_name):
 def extr_src(lan, site_name, site_url):
     global pending_artls
     src = newspaper.build(site_url, language=lan, memoize_articles=False)
-    """
-    write src.articles to file for failsafe
-    """
     for artl in src.articles:
         try:
             artl.download()
