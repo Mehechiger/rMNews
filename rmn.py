@@ -38,9 +38,13 @@ n_config.memoize_articles = False
 """
 
 
-def path_check(path):
+def check_mkdir(path):
     if not os.path.isdir(path):
         os.makedirs(path)
+
+
+def exists_artl(path, title):
+    return title[6:] in (d[6:-4] for d in os.listdir(path))
 
 
 def acq_datetime():
@@ -54,7 +58,9 @@ def rmapi(*cmds):
 
 def download_artls(artls):
     def saveas_pdf(title, url, path):
-        path_check(path)
+        check_mkdir(path)
+        if exists_artl(path, title):
+            return True
         try:
             pdfkit.from_url(url, path+title+".pdf", pdf_options)
             return True
@@ -86,9 +92,7 @@ def download_artls(artls):
             continue
         download_artl(title, url, site_name)
 
-    dump_pending()
-    dump_stashed()
-    dump_downloaded()
+    dump("pending_artls", "stashed_artls", "downloaded_artls")
 
 
 def extr_src(lan, site_name, site_url):
@@ -107,55 +111,23 @@ def extr_src(lan, site_name, site_url):
                 print("error, passed")
                 continue
         pending_artls.add((artl.title, artl.url, site_name))
-    dump_pending()
+    dump("pending_artls")
     download_artls(pending_artls)
 
 
-"""
-combine all the load/dump funcs
-"""
+def load(*somethings):
+    for something in somethings:
+        try:
+            with open(cwpath+something, "rb") as f:
+                globals()[something] = pickle.load(f)
+        except FileNotFoundError:
+            pass
 
 
-def load_pending():
-    global pending_artls
-    try:
-        with open(cwpath+"pending_artls", "rb") as f:
-            pending_artls = pickle.load(f)
-    except FileNotFoundError:
-        pass
-
-
-def dump_pending():
-    with open(cwpath+"pending_artls", "wb") as f:
-        pickle.dump(pending_artls, f)
-
-
-def load_stashed():
-    global stashed_artls
-    try:
-        with open(cwpath+"stashed_artls", "rb") as f:
-            stashed_artls = pickle.load(f)
-    except FileNotFoundError:
-        pass
-
-
-def dump_stashed():
-    with open(cwpath+"stashed_artls", "wb") as f:
-        pickle.dump(stashed_artls, f)
-
-
-def load_downloaded():
-    global downloaded_artls
-    try:
-        with open(cwpath+"downloaded_artls", "rb") as f:
-            downloaded_artls = pickle.load(f)
-    except FileNotFoundError:
-        pass
-
-
-def dump_downloaded():
-    with open(cwpath+"downloaded_artls", "wb") as f:
-        pickle.dump(downloaded_artls, f)
+def dump(*somethings):
+    for something in somethings:
+        with open(cwpath+something, "wb") as f:
+            pickle.dump(globals()[something], f)
 
 
 if __name__ == "__main__":
@@ -173,15 +145,15 @@ if __name__ == "__main__":
         sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
 
     # load downloaded articles from file
-    load_downloaded()
+    load("downloaded_artls")
 
     # read pending articles from file
     # retry pending articles
-    load_pending()
+    load("pending_artls")
     download_artls(pending_artls)
     # read stashed articles from file
     # retry stashed articles
-    load_stashed()
+    load("stashed_artls")
     download_artls(stashed_artls)
 
     for site in sites:
