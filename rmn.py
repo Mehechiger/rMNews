@@ -20,7 +20,7 @@ pdf_options = {
     'quiet': ''
 }  # pdf gen options
 stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
-src = None  # source build
+pending_artls = set()  # pending articles
 date = time = None  # date and time
 retry = 50  # max time of download retry
 
@@ -67,17 +67,10 @@ def dump_pending():
 
 
 def download_artl(title, url, site_name):
-    """
-    if saveas_pdf("%s %s" % (time, artl.title), artl.url, "%s/downloaded/%s %s/" % (rpath, date, site_name)):
-        print("%s %s downloaded" % (time, artl.title))
-    else:
-        stashed_artls[("%s %s" % (time, artl.title),
-                       artl.url, site_name)] += 1
-        print("%s %s stashed" % (time, artl.title))
-    """
-    global stashed_artls
+    global stashed_artls, pending_artls
     if saveas_pdf(title, url, "%s/downloaded/%s %s/" % (rpath, date, site_name)):
         try:
+            pending_artls.remove((title, url, site_name))
             stashed_artls.pop((title, url, site_name))
         except KeyError:
             pass
@@ -88,6 +81,7 @@ def download_artl(title, url, site_name):
 
 
 def extr_src(lan, site_name, site_url):
+    global pending_artls
     src = newspaper.build(site_url, language=lan, memoize_articles=False)
     """
     write src.articles to file for failsafe
@@ -99,7 +93,11 @@ def extr_src(lan, site_name, site_url):
         except:
             print("error, passed")
             continue
-        download_artl("%s %s" % (time, artl.title), artl.url, site_name)
+        pending_artls.add(("%s %s" % (time, artl.title), artl.url, site_name))
+    dump_pending()
+    for title, url, site_name in pending_artls.copy():
+        download_artl(title, url, site_name)
+    dump_pending()
 
 
 def load_stashed():
@@ -127,10 +125,15 @@ if __name__ == "__main__":
     with open(rpath+"sites.txt", "r") as f:
         sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
 
+    # read pending articles from file
+    # retry pending articles
+    load_pending()
+    for title, url, site_name in pending_artls.copy():
+        download_artl(title, url, site_name)
+    dump_pending()
     # read stashed articles from file
-    load_stashed()
-
     # retry stashed articles
+    load_stashed()
     for title, url, site_name in stashed_artls.copy():
         download_artl(title, url, site_name)
     dump_stashed()
