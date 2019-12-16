@@ -55,25 +55,10 @@ def saveas_pdf(title, url, path):
 def load_pending():
     global pending_artls
     try:
-        with open(rpath+"pending_artls", "r") as f:
-            pending_artls = set(tuple(line.split("\t"))
-                                for line in f.read().split("\n")[:-1])
-    except FileNotFoundError:
-        pass
-
-
-def load_pending():
-    global pending_artls
-    try:
         with open(rpath+"pending_artls", "rb") as f:
             pending_artls = pickle.load(f)
     except FileNotFoundError:
         pass
-
-
-def dump_pending():
-    with open(rpath+"pending_artls", "w") as f:
-        f.write("\n".join("\t".join(it) for it in pending_artls))
 
 
 def dump_pending():
@@ -115,17 +100,15 @@ def extr_src(lan, site_name, site_url):
 def load_stashed():
     global stashed_artls
     try:
-        with open(rpath+"stashed_artls", "r") as f:
-            stashed_artls = defaultdict(int, {tuple(line.split("\t\t")[0].split("\t")): int(line.split(
-                "\t\t")[1]) for line in f.read().split("\n")[:-1] if int(line.split("\t\t")[1]) < retry})
+        with open(rpath+"stashed_artls", "rb") as f:
+            stashed_artls = pickle.load(f)
     except FileNotFoundError:
         pass
 
 
 def dump_stashed():
-    with open(rpath+"stashed_artls", "w") as f:
-        f.write("\n".join("%s\t\t%s" % ("\t".join(k), str(v))
-                          for k, v in stashed_artls.items()))
+    with open(rpath+"stashed_artls", "wb") as f:
+        pickle.dump(stashed_artls, f)
 
 
 if __name__ == "__main__":
