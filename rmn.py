@@ -6,7 +6,8 @@ import newspaper
 from newspaper import news_pool
 import pdfkit
 import os
-from concurrent import futures
+import shutil
+import re
 from collections import defaultdict
 from datetime import datetime
 import _pickle as pickle
@@ -54,6 +55,32 @@ def acq_datetime():
 
 def rmapi(*cmds):
     return Popen("echo '%s' | %s" % ("\n".join(cmds), rmapi_loc), stdout=PIPE, shell=True).stdout.read()
+
+
+def chdir(path, retry=10):
+    for i in range(retry):
+        os.chdir(path)
+        if os.getcwd()+"/" == path:
+            return
+    print("fatal error: can't chdir")
+    exit()
+
+
+def rmtree(path, retry=10):
+    for i in range(retry):
+        shutil.rmtree(path)
+        if not os.path.isdir(path):
+            return
+    print("fatal error: can't rmtree")
+    exit()
+
+
+def r_mput(path):
+    chdir(path)
+    k = rmapi("mkdir News", "mput /News")
+    print(k)
+    rmtree(path)
+    chdir(cwpath)
 
 
 def download_artls(artls):
@@ -136,8 +163,9 @@ if __name__ == "__main__":
 
     """
     """
-    """
+    r_mput(cwpath+"downloaded/")
     exit()
+    """
     """
 
     # read list of sites from file
@@ -151,6 +179,7 @@ if __name__ == "__main__":
     # retry pending articles
     load("pending_artls")
     download_artls(pending_artls)
+
     # read stashed articles from file
     # retry stashed articles
     load("stashed_artls")
