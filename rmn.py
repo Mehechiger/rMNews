@@ -3,6 +3,7 @@
 
 from subprocess import Popen, PIPE
 import newspaper
+from newspaper import news_pool
 import pdfkit
 import os
 from collections import defaultdict
@@ -24,6 +25,14 @@ stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
 pending_artls = set()  # pending articles
 date = time = None  # date and time
 retry = 50  # max time of download retry
+n_config = newspaper.Config()
+n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
+n_config.fetch_images = False
+"""
+"""
+n_config.memoize_articles = False
+"""
+"""
 
 
 def path_check(path):
@@ -81,15 +90,20 @@ def download_artl(title, url, site_name):
 
 
 def extr_src(lan, site_name, site_url):
-    global pending_artls
-    src = newspaper.build(site_url, language=lan, memoize_articles=False)
+    global pending_artls, n_config
+    n_config.language = lan
+    src = newspaper.build(site_url, config=n_config)
+    news_pool.set([src, ], threads_per_source=5)
+    news_pool.join()
     for artl in src.articles:
         try:
-            artl.download()
             artl.parse()
         except:
-            print("error, passed")
-            continue
+            try:
+                artl.parse()
+            except:
+                print("error, passed")
+                continue
         pending_artls.add(("%s %s" % (time, artl.title), artl.url, site_name))
     dump_pending()
     for title, url, site_name in pending_artls.copy():
@@ -112,9 +126,14 @@ def dump_stashed():
 
 
 if __name__ == "__main__":
-    newspaper.Config().browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 
     acq_datetime()
+
+    """
+    exit()
+    """
+    """
+    """
 
     # read list of sites from file
     with open(rpath+"sites.txt", "r") as f:
