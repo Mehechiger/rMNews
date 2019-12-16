@@ -1,0 +1,13 @@
+ReMarkable Cloud API Shell
+[d]	stats
+[d]	L3LI S6
+[f]	epdf.pub_syntax-a-generative-introduction-2nd-edition
+[f]	1810.04826
+[f]	quickSheetsM1S1
+[d]	Prj_tlnese
+[f]	Quick sheets
+[f]	swb
+[f]	AttesHéb
+[d]	pdt
+[d]	4
+EOF

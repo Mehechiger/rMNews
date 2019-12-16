@@ -75,10 +75,18 @@ def rmtree(path, retry=10):
     exit()
 
 
-def r_mput(path):
+def r_mput(retry=10):
+    path = cwpath+"downloaded/"
+    if not os.path.isdir(path):
+        return
+
     chdir(path)
-    k = rmapi("mkdir News", "mput /News")
-    print(k)
+
+    mput_errors = b"failed to create directory|failed to upload file"
+    for i in range(retry):
+        if re.compile(mput_errors).search(rmapi("mkdir News", "mput /News")) == None:
+            break
+
     rmtree(path)
     chdir(cwpath)
 
@@ -120,6 +128,7 @@ def download_artls(artls):
         download_artl(title, url, site_name)
 
     dump("pending_artls", "stashed_artls", "downloaded_artls")
+    r_mput()
 
 
 def extr_src(lan, site_name, site_url):
@@ -163,7 +172,6 @@ if __name__ == "__main__":
 
     """
     """
-    r_mput(cwpath+"downloaded/")
     exit()
     """
     """
