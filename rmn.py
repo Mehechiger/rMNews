@@ -28,7 +28,7 @@ stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
 pending_artls = set()  # pending articles
 downloaded_artls = defaultdict(int)  # articles downloaded in the past
 date = time = None  # date and time
-retry = 50  # max time of download retry
+stashed_retry = 50  # max time of stashed artl download retry
 n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
@@ -139,16 +139,15 @@ def download_artls(artls):
 
     def download_artl(title, url, site_name):
         global stashed_artls, pending_artls, downloaded_artls
+        if stashed_artls[(title, url, site_name)] > stashed_retry:
+            return
         if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
             downloaded_artls[url] = 1
             try:
                 pending_artls.remove((title, url, site_name))
             except KeyError:
                 pass
-            try:
-                stashed_artls.pop((title, url, site_name))
-            except KeyError:
-                pass
+            stashed_artls.pop((title, url, site_name))
             print("%s %s downloaded" % (time, title))
         else:
             stashed_artls[(title, url, site_name)] += 1
@@ -199,35 +198,31 @@ def dump(*somethings):
 
 
 if __name__ == "__main__":
-
-    acq_datetime()
-
-    """
-    """
-    r_del_old()
-    exit()
-    """
-    """
-
-    # read list of sites from file
-    with open(cwpath+"sites.txt", "r") as f:
-        sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
-
-    # load downloaded articles from file
-    load("downloaded_artls")
-
-    # read pending articles from file
-    # retry pending articles
-    load("pending_artls")
-    download_artls(pending_artls)
-
-    # read stashed articles from file
-    # retry stashed articles
-    load("stashed_artls")
-    download_artls(stashed_artls)
-
-    for site in sites:
+    while 1:
         acq_datetime()
-        extr_src(*site)
 
-        print(rmapi("ls", "cd psdt", "ls"))
+        # del old news
+        r_del_old()
+
+        # read list of sites from file
+        with open(cwpath+"sites.txt", "r") as f:
+            sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
+
+        # load downloaded articles from file
+        load("downloaded_artls")
+
+        # read pending articles from file
+        # retry pending articles
+        load("pending_artls")
+        download_artls(pending_artls)
+
+        # read stashed articles from file
+        # retry stashed articles
+        load("stashed_artls")
+        download_artls(stashed_artls)
+
+        for site in sites:
+            acq_datetime()
+            extr_src(*site)
+
+            print(rmapi("ls", "cd psdt", "ls"))
