@@ -19,6 +19,10 @@ cwpath = os.getcwd()+"/"  # working path
 pdf_options = {
     'page-height': '7.2in',
     'page-width': '5.4in',
+    'margin-top': '0.2in',
+    'margin-bottom': '0.2in',
+    'margin-left': '0.15in',
+    'margin-right': '0.15in',
     'encoding': 'UTF-8',
     'dpi': '300',
     'grayscale': '',
@@ -40,9 +44,12 @@ n_config.memoize_articles = False
 """
 
 
-def check_mkdir(path):
-    if not os.path.isdir(path):
-        os.makedirs(path)
+def check_mkdir(path, retry=10):
+    for i in range(retry):
+        if os.path.isdir(path):
+            return
+        else:
+            os.makedirs(path)
 
 
 def exists_artl(path, title):
@@ -65,9 +72,10 @@ def chdir(path, retry=10):
 
 def rmtree(path, retry=10):
     for i in range(retry):
-        shutil.rmtree(path)
         if not os.path.isdir(path):
             return
+        else:
+            shutil.rmtree(path)
     print("fatal error: can't rmtree")
     exit()
 
@@ -77,6 +85,7 @@ def rmapi(*cmds):
 
 
 def r_mput(retry=10):
+    print("uploading news to cloud...")
     path = cwpath+"downloaded/"
     if not os.path.isdir(path):
         return
@@ -179,7 +188,7 @@ def extr_src(lan, site_name, site_url):
             except:
                 print("error, passed")
                 continue
-        pending_artls.add((artl.title, artl.url, site_name))
+        pending_artls.add((artl.title.replace("/", ""), artl.url, site_name))
     dump("pending_artls")
     download_artls(pending_artls)
 
