@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 import _pickle as pickle
 
 
-rmapi_loc = "go run github.com/juruen/rmapi"  # rmapi location
+rmapi_loc = "~/go/bin/rmapi"  # rmapi location
 sites = []  # list of sites
 cwpath = os.getcwd()+"/"  # working path
 pdf_options = {
