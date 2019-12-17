@@ -29,12 +29,13 @@ pending_artls = set()  # pending articles
 downloaded_artls = defaultdict(int)  # articles downloaded in the past
 date = time = None  # date and time
 stashed_retry = 50  # max time of stashed artl download retry
+cleanup_thres = 100000  # max number of entries allowed before cleanup
 n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
 """
-"""
 n_config.memoize_articles = False
+"""
 """
 """
 
@@ -120,7 +121,8 @@ def r_del_old(n_days=7):
     to_del = ["News/%s" % news_dirs[i]
               for i in range(len(news_dirs)) if datetime.strptime(news_days[i], "%m-%d") < date_old]
 
-    r_rmtree(*to_del)
+    if to_del:
+        r_rmtree(*to_del)
 
 
 def download_artls(artls):
@@ -197,6 +199,20 @@ def dump(*somethings):
             pickle.dump(globals()[something], f)
 
 
+def cleanup(*somethings):
+    for something in somethings:
+        if len(globals()[something]) > cleanup_thres:
+            n = int(len(globals()[something])*0.1)
+            for key in globals()[something].copy():
+                if n > 0:
+                    try:
+                        globals()[something].pop(key)
+                    except TypeError:
+                        globals()[something].remove(key)
+                n -= 1
+    dump(*somethings)
+
+
 if __name__ == "__main__":
     while 1:
         acq_datetime()
@@ -225,4 +241,4 @@ if __name__ == "__main__":
             acq_datetime()
             extr_src(*site)
 
-            print(rmapi("ls", "cd psdt", "ls"))
+        cleanup("downloaded_artls", "stashed_artls", "pending_artls")
