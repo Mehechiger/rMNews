@@ -216,29 +216,39 @@ def cleanup(*somethings):
 if __name__ == "__main__":
     while 1:
         acq_datetime()
+        print("\n", "fresh new round at %s %s" % (date, time))
 
         # del old news
+        print("deleting old news...")
         r_del_old()
 
         # read list of sites from file
+        print("loading sites to parse...")
         with open(cwpath+"sites.txt", "r") as f:
             sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
 
         # load downloaded articles from file
+        print("loading list of downloaded articles...")
         load("downloaded_artls")
 
         # read pending articles from file
         # retry pending articles
+        print("loading list of unfinished pending articles...", end=" ")
         load("pending_artls")
+        print("retrying...")
         download_artls(pending_artls)
 
         # read stashed articles from file
         # retry stashed articles
+        print("loading list of stashed articles...", end=" ")
         load("stashed_artls")
+        print("retrying...")
         download_artls(stashed_artls)
 
         for site in sites:
+            print("processing site %s..." % site[1])
             acq_datetime()
             extr_src(*site)
 
+        print("cleaning up...")
         cleanup("downloaded_artls", "stashed_artls", "pending_artls")
