@@ -38,8 +38,8 @@ n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
 """
-n_config.memoize_articles = False
 """
+n_config.memoize_articles = False
 """
 """
 
@@ -158,7 +158,10 @@ def download_artls(artls):
                 pending_artls.remove((title, url, site_name))
             except KeyError:
                 pass
-            stashed_artls.pop((title, url, site_name))
+            try:
+                stashed_artls.pop((title, url, site_name))
+            except KeyError:
+                pass
             print("%s %s downloaded" % (time, title))
         else:
             stashed_artls[(title, url, site_name)] += 1
@@ -189,6 +192,11 @@ def extr_src(lan, site_name, site_url):
                 print("error, passed")
                 continue
         pending_artls.add((artl.title.replace("/", ""), artl.url, site_name))
+        """
+        """
+        print("kkkkkkk", artl.title.replace("/", ""))
+        """
+        """
     dump("pending_artls")
     download_artls(pending_artls)
 
