@@ -72,7 +72,7 @@ def rmtree(path, retry=10):
 
 
 def rmapi(*cmds):
-    return Popen("echo '%s' | %s" % ("\n".join(cmds), rmapi_loc), stdout=PIPE, shell=True).stdout.read()
+    return Popen("echo '%s' | %s" % ("\n".join(cmds), rmapi_loc), stdout=PIPE, shell=True).stdout.read().decode(encoding="utf_8")
 
 
 def r_mput(retry=10):
@@ -82,7 +82,7 @@ def r_mput(retry=10):
 
     chdir(path)
 
-    mput_errors = b"failed to create directory|failed to upload file"
+    mput_errors = "failed to create directory|failed to upload file"
     for i in range(retry):
         if re.compile(mput_errors).search(rmapi("mkdir News", "mput /News")) == None:
             break
@@ -91,39 +91,36 @@ def r_mput(retry=10):
     chdir(cwpath)
 
 
-def r_rmtree(r_path, retry=10):
-    """
-    """
-    k = rmapi("cd \"News/03-11 果壳\"", "ls")
-    print(k.decode(encoding="utf-8"))
-    """
-    """
-    pass
+def r_rmtree(*r_paths):
+    def r_tree(r_path):
+        ls_list = rmapi("ls \"%s\"" % r_path)
+        ds = re.compile("(?<=\[d\]\t).*(?=\n)").findall(ls_list)
+        fs = re.compile("(?<=\[f\]\t).*(?=\n)").findall(ls_list)
+        br = " ".join("\"%s/%s\"" % (r_path, f) for f in fs)
+        if ds:
+            for d in ds:
+                return "%s %s \"%s/%s\"" % (br, r_tree("%s/%s" % (r_path, d)), r_path, d)
+        else:
+            return br
+
+    r_trees = ""
+    for r_path in r_paths:
+        r_trees = "%s %s \"%s\"" % (r_trees, "".join(r_tree(r_path)), r_path)
+    rmapi("rm %s" % r_trees)
 
 
 def r_del_old(n_days=7):
-    """
-    """
-    r_rmtree("k")
-    """
-    """
     date_old = datetime.strptime(date, "%m-%d")-timedelta(days=n_days)
 
     news_dirs = re.compile(
-        b"(?#\[d\]\t)\d\d-\d\d.*(?#\n)").findall(rmapi("cd News", "ls"))
+        "(?<=\[d\]\t)\d\d-\d\d.*(?=\n)").findall(rmapi("ls News"))
 
     news_days = [news_dir[:5] for news_dir in news_dirs]
 
-    to_del = (news_dirs[i] for i in range(len(news_dirs)) if datetime.strptime(
-        news_days[i].decode(encoding="utf-8"), "%m-%d") < date_old)
+    to_del = ["News/%s" % news_dirs[i]
+              for i in range(len(news_dirs)) if datetime.strptime(news_days[i], "%m-%d") < date_old]
 
-    """
-    """
-    exit()
-    """
-    """
-    for news_dir in to_del:
-        r_rmtree("News/"+news_dir)
+    r_rmtree(*to_del)
 
 
 def download_artls(artls):
