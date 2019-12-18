@@ -6,4 +6,4 @@ juruen/rmapi
 
 wkhtmltopdf
 
-python: newspaper3k, pdfkit
+python: newspaper3k, pdfkit, bs4

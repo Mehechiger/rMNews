@@ -11,6 +11,7 @@ import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 import _pickle as pickle
+from bs4 import BeautifulSoup
 
 
 rmapi_loc = "~/go/bin/rmapi"  # rmapi location
@@ -184,7 +185,7 @@ def download_artls(artls):
     dump("pending_artls", "stashed_artls", "downloaded_artls")
 
 
-def extr_src(lan, site_name, site_url):
+def extr_src(lan, site_name, site_url, kwarg=None, val=None):
     print("processing site %s, building source..." % site_name, end="\r")
     global pending_artls, n_config
     n_config.language = lan
@@ -205,8 +206,13 @@ def extr_src(lan, site_name, site_url):
                 except:
                     print("error, passed")
                     continue
+            if title:
+                artl_title = BeautifulSoup(artl.html, "html.parser").find(
+                    attrs={kwarg: val}).string
+            else:
+                artl_title = artl.title
             pending_artls.add(
-                (artl.title.replace("/", ""), artl.url, site_name))
+                (artl_title.replace("/", ""), artl.url, site_name))
         dump("pending_artls")
         download_artls(pending_artls)
     else:

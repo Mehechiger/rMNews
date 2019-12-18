@@ -1,3 +1,3 @@
+zh	知乎日报	https://daily.zhihu.com	class	DailyHeader-title
 zh	cnBeta	https://cnbeta.com
 zh	果壳	https://guokr.com
-zh	知乎日报	https://daily.zhihu.com
