@@ -90,7 +90,7 @@ def r_mput(retry=10):
     print("uploading news to cloud...", end="\r")
     path = cwpath+"downloaded/"
     if not os.path.isdir(path):
-        print("uploading news to cloud... nothing to upload", end="\r")
+        print("uploading news to cloud... nothing to upload")
         return
 
     chdir(path)
@@ -102,6 +102,7 @@ def r_mput(retry=10):
 
     rmtree(path)
     chdir(cwpath)
+    print("uploading news to cloud... done")
 
 
 def r_rmtree(*r_paths):
@@ -136,6 +137,7 @@ def r_del_old(n_days=7):
 
     if to_del:
         r_rmtree(*to_del)
+        print("deleting old news... done")
     else:
         print("deleting old news... nothing to delete")
 
@@ -160,6 +162,7 @@ def download_artls(artls):
             print("downloading %s %s..." % (time, title), end="\r")
             if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
                 downloaded_artls[url] = 1
+                downloaded_artls[title] = 1
                 try:
                     pending_artls.remove((title, url, site_name))
                 except KeyError:
@@ -174,37 +177,40 @@ def download_artls(artls):
                 print("downloading %s %s... stashed" % (time, title))
 
     for title, url, site_name in artls.copy():
-        if downloaded_artls[url]:
+        if downloaded_artls[title] or downloaded_artls[url]:
             continue
         download_artl(title, url, site_name)
 
     dump("pending_artls", "stashed_artls", "downloaded_artls")
-    r_mput()
 
 
 def extr_src(lan, site_name, site_url):
-    print("processing site %s..." % site_name, end="\r")
+    print("processing site %s, building source..." % site_name, end="\r")
     global pending_artls, n_config
     n_config.language = lan
-    print("processing site %s... building source..." % site_name, end="\r")
     src = newspaper.build(site_url, config=n_config)
-    print("processing site %s... building source... downloading..." %
-          site_name, end="\r")
-    news_pool.set([src, ], threads_per_source=5)
-    news_pool.join()
-    print("processing site %s... building source... downloading... parsing..." % site_name)
-    for artl in src.articles:
-        try:
-            artl.parse()
-        except:
+    if src.size():
+        print("processing site %s, building source... downloading..." %
+              site_name, end="\r")
+        news_pool.set([src, ], threads_per_source=5)
+        news_pool.join()
+        print(
+            "processing site %s, building source... downloading... parsing..." % site_name)
+        for artl in src.articles:
             try:
                 artl.parse()
             except:
-                print("error, passed")
-                continue
-        pending_artls.add((artl.title.replace("/", ""), artl.url, site_name))
-    dump("pending_artls")
-    download_artls(pending_artls)
+                try:
+                    artl.parse()
+                except:
+                    print("error, passed")
+                    continue
+            pending_artls.add(
+                (artl.title.replace("/", ""), artl.url, site_name))
+        dump("pending_artls")
+        download_artls(pending_artls)
+    else:
+        print("processing site %s, building source... nothing to download" % site_name)
 
 
 def load(*somethings):
@@ -277,5 +283,7 @@ if __name__ == "__main__":
         for site in sites:
             acq_datetime()
             extr_src(*site)
+
+        r_mput()
 
         cleanup("downloaded_artls", "stashed_artls", "pending_artls")
