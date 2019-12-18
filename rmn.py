@@ -206,7 +206,7 @@ def extr_src(lan, site_name, site_url, kwarg=None, val=None):
                 except:
                     print("error, passed")
                     continue
-            if title:
+            if kwarg:
                 artl_title = BeautifulSoup(artl.html, "html.parser").find(
                     attrs={kwarg: val}).string
             else:
