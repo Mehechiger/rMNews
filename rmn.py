@@ -87,10 +87,10 @@ def rmapi(*cmds):
 
 
 def r_mput(retry=10):
-    print("uploading news to cloud...", end=" ")
+    print("uploading news to cloud...", end="\r")
     path = cwpath+"downloaded/"
     if not os.path.isdir(path):
-        print("nothing to upload.")
+        print("uploading news to cloud... nothing to upload", end="\r")
         return
 
     chdir(path)
@@ -123,7 +123,7 @@ def r_rmtree(*r_paths):
 
 
 def r_del_old(n_days=7):
-    print("deleting old news...", end=" ")
+    print("deleting old news...", end="\r")
     date_old = datetime.strptime(date, "%m-%d")-timedelta(days=n_days)
 
     news_dirs = re.compile(
@@ -137,7 +137,7 @@ def r_del_old(n_days=7):
     if to_del:
         r_rmtree(*to_del)
     else:
-        print("nothing to delete.")
+        print("deleting old news... nothing to delete")
 
 
 def download_artls(artls):
@@ -156,22 +156,22 @@ def download_artls(artls):
 
     def download_artl(title, url, site_name):
         global stashed_artls, pending_artls, downloaded_artls
-        if stashed_artls[(title, url, site_name)] > stashed_retry:
-            return
-        if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
-            downloaded_artls[url] = 1
-            try:
-                pending_artls.remove((title, url, site_name))
-            except KeyError:
-                pass
-            try:
-                stashed_artls.pop((title, url, site_name))
-            except KeyError:
-                pass
-            print("%s %s downloaded" % (time, title))
-        else:
-            stashed_artls[(title, url, site_name)] += 1
-            print("%s stashed" % title)
+        if stashed_artls[(title, url, site_name)] < stashed_retry:
+            print("downloading %s %s..." % (time, title), end="\r")
+            if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
+                downloaded_artls[url] = 1
+                try:
+                    pending_artls.remove((title, url, site_name))
+                except KeyError:
+                    pass
+                try:
+                    stashed_artls.pop((title, url, site_name))
+                except KeyError:
+                    pass
+                print("downloading %s %s... done" % (time, title))
+            else:
+                stashed_artls[(title, url, site_name)] += 1
+                print("downloading %s %s... stashed" % (time, title))
 
     for title, url, site_name in artls.copy():
         if downloaded_artls[url]:
@@ -183,11 +183,16 @@ def download_artls(artls):
 
 
 def extr_src(lan, site_name, site_url):
+    print("processing site %s..." % site_name, end="\r")
     global pending_artls, n_config
     n_config.language = lan
+    print("processing site %s... building source..." % site_name, end="\r")
     src = newspaper.build(site_url, config=n_config)
+    print("processing site %s... building source... downloading..." %
+          site_name, end="\r")
     news_pool.set([src, ], threads_per_source=5)
     news_pool.join()
+    print("processing site %s... building source... downloading... parsing..." % site_name)
     for artl in src.articles:
         try:
             artl.parse()
@@ -218,6 +223,7 @@ def dump(*somethings):
 
 
 def cleanup(*somethings):
+    print("cleaning up...")
     for something in somethings:
         if len(globals()[something]) > cleanup_thres:
             n = int(len(globals()[something])*0.1)
@@ -250,28 +256,26 @@ if __name__ == "__main__":
 
         # read pending articles from file
         # retry pending articles
-        print("loading list of unfinished pending articles...", end=" ")
+        print("loading list of unfinished pending articles...", end="\r")
         load("pending_artls")
         if pending_artls:
-            print("retrying...")
+            print("loading list of unfinished pending articles... retrying...")
+            download_artls(pending_artls)
         else:
-            print("nothing to retry.")
-        download_artls(pending_artls)
+            print("loading list of unfinished pending articles... nothing to retry")
 
         # read stashed articles from file
         # retry stashed articles
-        print("loading list of stashed articles...", end=" ")
+        print("loading list of stashed articles...", end="\r")
         load("stashed_artls")
         if stashed_artls:
-            print("retrying...")
+            print("loading list of stashed articles... retrying...")
+            download_artls(stashed_artls)
         else:
-            print("nothing to retry.")
-        download_artls(stashed_artls)
+            print("loading list of stashed articles... nothing to retry")
 
         for site in sites:
-            print("processing site %s..." % site[1])
             acq_datetime()
             extr_src(*site)
 
-        print("cleaning up...")
         cleanup("downloaded_artls", "stashed_artls", "pending_artls")
