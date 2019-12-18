@@ -206,13 +206,16 @@ def extr_src(lan, site_name, site_url, kwarg=None, val=None):
                 except:
                     print("error, passed")
                     continue
-            if kwarg:
-                artl_title = BeautifulSoup(artl.html, "html.parser").find(
-                    attrs={kwarg: val}).string
-            else:
-                artl_title = artl.title
-            pending_artls.add(
-                (artl_title.replace("/", ""), artl.url, site_name))
+            try:
+                if kwarg:
+                    artl_title = BeautifulSoup(artl.html, "html.parser").find(
+                        attrs={kwarg: val}).string
+                else:
+                    artl_title = artl.title
+                pending_artls.add(
+                    (artl_title.replace("/", ""), artl.url, site_name))
+            except:
+                pass
         dump("pending_artls")
         download_artls(pending_artls)
     else:
