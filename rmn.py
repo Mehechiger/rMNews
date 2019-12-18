@@ -38,8 +38,8 @@ n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
 """
-"""
 n_config.memoize_articles = False
+"""
 """
 """
 
@@ -50,6 +50,8 @@ def check_mkdir(path, retry=10):
             return
         else:
             os.makedirs(path)
+    print("fatal error: can't mkdir")
+    exit()
 
 
 def exists_artl(path, title):
@@ -120,6 +122,7 @@ def r_rmtree(*r_paths):
 
 
 def r_del_old(n_days=7):
+    print("deleting old news...", end=" ")
     date_old = datetime.strptime(date, "%m-%d")-timedelta(days=n_days)
 
     news_dirs = re.compile(
@@ -132,6 +135,8 @@ def r_del_old(n_days=7):
 
     if to_del:
         r_rmtree(*to_del)
+    else:
+        print("nothing to delete.")
 
 
 def download_artls(artls):
@@ -192,11 +197,6 @@ def extr_src(lan, site_name, site_url):
                 print("error, passed")
                 continue
         pending_artls.add((artl.title.replace("/", ""), artl.url, site_name))
-        """
-        """
-        print("kkkkkkk", artl.title.replace("/", ""))
-        """
-        """
     dump("pending_artls")
     download_artls(pending_artls)
 
@@ -236,7 +236,6 @@ if __name__ == "__main__":
         print("\n", "fresh new round at %s %s" % (date, time))
 
         # del old news
-        print("deleting old news...")
         r_del_old()
 
         # read list of sites from file
@@ -252,14 +251,20 @@ if __name__ == "__main__":
         # retry pending articles
         print("loading list of unfinished pending articles...", end=" ")
         load("pending_artls")
-        print("retrying...")
+        if pending_artls:
+            print("retrying...")
+        else:
+            print("nothing to retry.")
         download_artls(pending_artls)
 
         # read stashed articles from file
         # retry stashed articles
         print("loading list of stashed articles...", end=" ")
         load("stashed_artls")
-        print("retrying...")
+        if stashed_artls:
+            print("retrying...")
+        else:
+            print("nothing to retry.")
         download_artls(stashed_artls)
 
         for site in sites:
