@@ -17,8 +17,8 @@ rmapi_loc = "~/go/bin/rmapi"  # rmapi location
 sites = []  # list of sites
 cwpath = os.getcwd()+"/"  # working path
 pdf_options = {
-    'page-height': '7.2in',
-    'page-width': '5.4in',
+    'page-height': '6.4in',
+    'page-width': '4.8in',
     'margin-top': '0.2in',
     'margin-bottom': '0.2in',
     'margin-left': '0.15in',
@@ -87,9 +87,10 @@ def rmapi(*cmds):
 
 
 def r_mput(retry=10):
-    print("uploading news to cloud...")
+    print("uploading news to cloud...", end=" ")
     path = cwpath+"downloaded/"
     if not os.path.isdir(path):
+        print("nothing to upload.")
         return
 
     chdir(path)
