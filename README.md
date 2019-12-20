@@ -41,4 +41,4 @@ Each line is an entry for a specific site and infos are seperated by tabulations
 
 **And...?**
 
-Just run it with python3 rmn.py or perhaps as some suggested, set it up as a system daemon.
+Just run it with `python3 rmn.py` or perhaps as some suggested, set it up as a system daemon.
