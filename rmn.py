@@ -40,8 +40,8 @@ n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
 """
-n_config.memoize_articles = False
 """
+n_config.memoize_articles = False
 """
 """
 
@@ -193,6 +193,30 @@ def download_artls(artls):
     dump("pending_artls", "stashed_artls", "downloaded_artls")
 
 
+def download_artls_mp(artls):
+    def saveas_pdf(title, url, path):
+        check_mkdir(path)
+        if exists_artl(path, title):
+            return True
+        try:
+            pdfkit.from_url(url, path+title+".pdf", pdf_options)
+            return True
+        except OSError:
+            if os.path.exists(path+title+".pdf"):
+                return True
+            else:
+                return False
+
+    def download_artl_sp(title, url, site_name):
+        pass
+
+    """
+    """
+    """
+    """
+    dump("pending_artls", "stashed_artls", "downloaded_artls")
+
+
 def extr_src(lan, site_name, site_url, kwarg=None, val=None):
     print("processing site %s, building source..." % site_name, end="\r")
     global pending_artls, n_config
@@ -225,7 +249,12 @@ def extr_src(lan, site_name, site_url, kwarg=None, val=None):
             except:
                 pass
         dump("pending_artls")
+        """
         download_artls(pending_artls)
+        """
+        download_artls_mp(pending_artls)
+        """
+        """
     else:
         print("processing site %s, building source... nothing to download" % site_name)
 
@@ -300,6 +329,8 @@ if __name__ == "__main__":
         for site in sites:
             extr_src(*site)
 
+        """
         r_mput()
+        """
 
         cleanup("downloaded_artls", "stashed_artls", "pending_artls")
