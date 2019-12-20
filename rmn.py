@@ -33,6 +33,7 @@ stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
 pending_artls = set()  # pending articles
 downloaded_artls = defaultdict(int)  # articles downloaded in the past
 date = time = None  # date and time
+last_rdelold = None  # last r_del_old() date
 stashed_retry = 50  # max time of stashed artl download retry
 cleanup_thres = 100000  # max number of entries allowed before cleanup
 n_config = newspaper.Config()
@@ -125,22 +126,26 @@ def r_rmtree(*r_paths):
 
 
 def r_del_old(n_days=7):
-    print("deleting old news...", end="\r")
-    date_old = datetime.strptime(date, "%m-%d")-timedelta(days=n_days)
+    global last_rdelold
+    last_rdelold = last_rdelold if last_rdelold else datetime.now()-timedelta(hours=12)
+    if datetime.now() > last_rdelold+timedelta(hours=12):
+        last_rdelold = datetime.now()
+        print("deleting old news...", end="\r")
+        date_old = datetime.strptime(date, "%m-%d")-timedelta(days=n_days)
 
-    news_dirs = re.compile(
-        "(?<=\[d\]\t)\d\d-\d\d.*(?=\n)").findall(rmapi("ls News"))
+        news_dirs = re.compile(
+            "(?<=\[d\]\t)\d\d-\d\d.*(?=\n)").findall(rmapi("ls News"))
 
-    news_days = [news_dir[:5] for news_dir in news_dirs]
+        news_days = [news_dir[:5] for news_dir in news_dirs]
 
-    to_del = ["News/%s" % news_dirs[i]
-              for i in range(len(news_dirs)) if datetime.strptime(news_days[i], "%m-%d") < date_old]
+        to_del = ["News/%s" % news_dirs[i]
+                  for i in range(len(news_dirs)) if datetime.strptime(news_days[i], "%m-%d") < date_old]
 
-    if to_del:
-        r_rmtree(*to_del)
-        print("deleting old news... done")
-    else:
-        print("deleting old news... nothing to delete")
+        if to_del:
+            r_rmtree(*to_del)
+            print("deleting old news... done")
+        else:
+            print("deleting old news... nothing to delete")
 
 
 def download_artls(artls):
