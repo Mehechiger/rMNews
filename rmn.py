@@ -163,7 +163,8 @@ def download_artls(artls):
                 return False
 
     def download_artl(title, url, site_name):
-        global stashed_artls, pending_artls, downloaded_artls
+        global stashed_artls, pending_artls, downloaded_artls, date, time
+        acq_datetime()
         if stashed_artls[(title, url, site_name)] < stashed_retry:
             print("downloading %s %s..." % (time, title), end="\r")
             if downloaded_artls[title] or downloaded_artls[url] or saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
@@ -297,7 +298,6 @@ if __name__ == "__main__":
             print("loading list of stashed articles... nothing to retry")
 
         for site in sites:
-            acq_datetime()
             extr_src(*site)
 
         r_mput()
