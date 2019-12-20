@@ -19,7 +19,6 @@ Copy rmn.py and sites.txt to somewhere you want, but keep them in the same folde
 | zh   | 知乎日报 | https://daily.zhihu.com | class | DailyHeader-title |
 | zh   | cnBeta   | https://cnbeta.com      |       |                   |
 | zh   | 果壳     | https://guokr.com       |       |                   |
-
 Each line is an entry for a specific site and infos are seperated by tabulations, in the order:
 
 1. language (see https://newspaper.readthedocs.io/en/latest/user_guide/quickstart.html bottom of page)
