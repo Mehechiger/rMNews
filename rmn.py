@@ -127,8 +127,8 @@ def r_rmtree(*r_paths):
 
 def r_del_old(n_days=7):
     global last_rdelold
-    last_rdelold = last_rdelold if last_rdelold else datetime.now()-timedelta(hours=12)
-    if datetime.now() > last_rdelold+timedelta(hours=12):
+    last_rdelold = last_rdelold if last_rdelold else datetime.now()-timedelta(hours=6)
+    if datetime.now() > last_rdelold+timedelta(hours=6):
         last_rdelold = datetime.now()
         print("deleting old news...", end="\r")
         date_old = datetime.strptime(date, "%m-%d")-timedelta(days=n_days)
