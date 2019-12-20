@@ -166,9 +166,7 @@ def download_artls(artls):
         global stashed_artls, pending_artls, downloaded_artls
         if stashed_artls[(title, url, site_name)] < stashed_retry:
             print("downloading %s %s..." % (time, title), end="\r")
-            if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
-                downloaded_artls[url] = 1
-                downloaded_artls[title] = 1
+            if downloaded_artls[title] or downloaded_artls[url] or saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
                 try:
                     pending_artls.remove((title, url, site_name))
                 except KeyError:
@@ -177,14 +175,18 @@ def download_artls(artls):
                     stashed_artls.pop((title, url, site_name))
                 except KeyError:
                     pass
-                print("downloading %s %s... done" % (time, title))
+                if downloaded_artls[title] or downloaded_artls[url]:
+                    print("downloading %s %s... already downloaded" %
+                          (time, title))
+                else:
+                    downloaded_artls[url] = 1
+                    downloaded_artls[title] = 1
+                    print("downloading %s %s... done" % (time, title))
             else:
                 stashed_artls[(title, url, site_name)] += 1
                 print("downloading %s %s... stashed" % (time, title))
 
     for title, url, site_name in artls.copy():
-        if downloaded_artls[title] or downloaded_artls[url]:
-            continue
         download_artl(title, url, site_name)
 
     dump("pending_artls", "stashed_artls", "downloaded_artls")
