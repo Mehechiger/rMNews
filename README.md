@@ -13,6 +13,7 @@ Python3: newspaper3k, pdfkit, bs4
 **Installation**
 
 Copy rmn.py and sites.txt to somewhere you want, but keep them in the same folder. Then modify the sites.txt to get your favorite news, here's an example:
+
    1   2       3                      4     5
 
 > zh	知乎日报	https://daily.zhihu.com	class	DailyHeader-title
