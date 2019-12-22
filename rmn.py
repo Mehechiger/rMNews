@@ -35,9 +35,9 @@ n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
 """
+"""
+"""
 n_config.memoize_articles = False
-"""
-"""
 """
 
 sites = []  # list of sites
@@ -50,10 +50,15 @@ last_rdelold = None  # last r_del_old() date
 
 stashed_retry = 50  # max time of stashed artl download retry
 cleanup_thres = 100000  # max number of entries allowed before cleanup
-t_per_site = 10  # max number of threads per site
-t_sites = 10  # max number of threads to build sites
+t_per_site = 5  # max number of threads per site
+t_sites = 3  # max number of threads to build sites
 
-lock = threading.Lock()
+stashed_lock = threading.Lock()
+pending_lock = threading.Lock()
+downloaded_lock = threading.Lock()
+stashed_file_lock = threading.Lock()
+pending_file_lock = threading.Lock()
+downloaded_file_lock = threading.Lock()
 
 
 def check_mkdir(path, retry=10):
@@ -175,55 +180,70 @@ def download_artls_mt(artls):
     def download_artl_st(title, url, site_name):
         global stashed_artls, pending_artls, downloaded_artls
 
-        lock.acquire()
+        stashed_lock.acquire()
         if stashed_artls[(title, url, site_name)] < stashed_retry:
+            stashed_lock.release()
+
+            downloaded_lock.acquire()
             if downloaded_artls[title] or downloaded_artls[url]:
+                downloaded_lock.release()
+
+                pending_lock.acquire
                 try:
                     pending_artls.remove((title, url, site_name))
                 except KeyError:
                     pass
+                pending_lock.release()
+
+                stashed_lock.acquire()
                 try:
                     stashed_artls.pop((title, url, site_name))
                 except KeyError:
                     pass
-                lock.release()
+                stashed_lock.release()
 
                 print("downloading %s %s... already downloaded" % (time, title))
             else:
-                lock.release()
+                downloaded_lock.release()
 
                 if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
 
-                    lock.acquire()
+                    pending_lock.acquire()
                     try:
                         pending_artls.remove((title, url, site_name))
                     except KeyError:
                         pass
+                    pending_lock.release()
+
+                    stashed_lock.acquire()
                     try:
                         stashed_artls.pop((title, url, site_name))
                     except KeyError:
                         pass
+                    stashed_lock.release()
+
+                    downloaded_lock.acquire()
                     downloaded_artls[url] = 1
                     downloaded_artls[title] = 1
-                    lock.release()
+                    downloaded_lock.release()
 
                     print("downloading %s %s... done" % (time, title))
                 else:
 
-                    lock.acquire()
+                    stashed_lock.acquire()
                     stashed_artls[(title, url, site_name)] += 1
-                    lock.release()
+                    stashed_lock.release()
 
                     print("downloading %s %s... stashed" % (time, title))
         else:
-            lock.release()
+            stashed_lock.release()
 
     acq_datetime()
     with ThreadPoolExecutor(max_workers=t_per_site) as executor:
         for title, url, site_name in artls.copy():
             executor.submit(download_artl_st, title, url, site_name)
 
-    dump("pending_artls", "stashed_artls", "downloaded_artls")
+    dump_mt("pending_artls", "stashed_artls", "downloaded_artls")
 
 
 def extr_src_mt(sites):
@@ -250,17 +270,15 @@ def extr_src_mt(sites):
                     else:
                         artl_title = artl.title
 
-                    lock.acquire()
+                    pending_lock.acquire()
                     pending_artls.add(
                         (artl_title.replace("/", ""), artl.url, site_name))
-                    lock.release()
+                    pending_lock.release()
 
                 except:
                     pass
 
-            lock.acquire()
-            dump("pending_artls")
-            lock.release()
+            dump_mt("pending_artls")
 
             print("downloading %d articles from %s" % (src.size(), site_name))
             download_artls_mt(pending_artls)
@@ -274,34 +292,60 @@ def extr_src_mt(sites):
             executor.submit(extr_src_st, *site)
 
 
-def load(*somethings):
-    for something in somethings:
-        try:
-            with open(cwpath+something, "rb") as f:
-                globals()[something] = pickle.load(f)
-        except FileNotFoundError:
-            pass
+def load_mt(*somethings):
+    def load_st(something):
+        with globals()["%s_lock" % something[:-6]]:
+            try:
+                with open(cwpath+something, "rb") as f:
+                    globals()[something] = pickle.load(f)
+            except FileNotFoundError:
+                pass
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        for something in somethings:
+            executor.submit(load_st, something)
 
 
-def dump(*somethings):
-    for something in somethings:
-        with open(cwpath+something, "wb") as f:
-            pickle.dump(globals()[something], f)
+def dump_mt(*somethings):
+    def dump_st(something):
+        with globals()["%s_lock" % something[:-6]]:
+            with globals()["%s_file_lock" % something[:-6]]:
+                with open(cwpath+something, "wb") as f:
+                    pickle.dump(globals()[something], f)
+
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        for something in somethings:
+            executor.submit(dump_st, something)
 
 
-def cleanup(*somethings):
-    print("cleaning up...")
-    for something in somethings:
+def cleanup_mt(*somethings):
+    def cleanup_st(something):
+
+        globals()["%s_lock" % something[:-6]].acquire()
         if len(globals()[something]) > cleanup_thres:
-            n = int(len(globals()[something])*0.1)
+            globals()["%s_lock" % something[:-6]].release()
+
+            with globals()["%s_lock" % something[:-6]]:
+                n = int(len(globals()[something])*0.1)
+
             for key in globals()[something].copy():
                 if n > 0:
-                    try:
-                        globals()[something].pop(key)
-                    except TypeError:
-                        globals()[something].remove(key)
+                    with globals()["%s_lock" % something[:-6]]:
+                        try:
+                            globals()[something].pop(key)
+                        except TypeError:
+                            globals()[something].remove(key)
+                else:
+                    break
                 n -= 1
-    dump(*somethings)
+        else:
+            globals()["%s_lock" % something[:-6]].release()
+
+    print("cleaning up...")
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        for something in somethings:
+            executor.submit(cleanup_st, something)
+    dump_mt(*somethings)
 
 
 if __name__ == "__main__":
@@ -314,12 +358,12 @@ if __name__ == "__main__":
 
         # load downloaded articles from file
         print("loading list of downloaded articles...")
-        load("downloaded_artls")
+        load_mt("downloaded_artls")
 
         # read pending articles from file
         # retry pending articles
         print("loading list of unfinished pending articles...", end="\r")
-        load("pending_artls")
+        load_mt("pending_artls")
         if pending_artls:
             print("loading list of unfinished pending articles... retrying...")
             download_artls_mt(pending_artls)
@@ -329,7 +373,7 @@ if __name__ == "__main__":
         # read stashed articles from file
         # retry stashed articles
         print("loading list of stashed articles...", end="\r")
-        load("stashed_artls")
+        load_mt("stashed_artls")
         if stashed_artls:
             print("loading list of stashed articles... retrying...")
             download_artls_mt(stashed_artls)
@@ -344,4 +388,4 @@ if __name__ == "__main__":
 
         r_mput()
 
-        cleanup("downloaded_artls", "stashed_artls", "pending_artls")
+        cleanup_mt("downloaded_artls", "stashed_artls", "pending_artls")
