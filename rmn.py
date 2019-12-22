@@ -354,32 +354,22 @@ if __name__ == "__main__":
         acq_datetime()
         print("\n", "fresh new round at %s %s" % (date, time))
 
-        # del old news
         r_del_old()
 
-        # load downloaded articles from file
-        print("loading list of downloaded articles...")
-        load_mt("downloaded_artls")
+        print("loading list of downloaded, pending and stashed articles...")
+        load_mt("downloaded_artls", "pending_artls", "stashed_artls")
 
-        # read pending articles from file
-        # retry pending articles
-        print("loading list of unfinished pending articles...", end="\r")
-        load_mt("pending_artls")
         if pending_artls:
-            print("loading list of unfinished pending articles... retrying...")
+            print("retrying unfinished pending articles...")
             download_artls_mt(pending_artls)
         else:
-            print("loading list of unfinished pending articles... nothing to retry")
+            print("no pending articles found")
 
-        # read stashed articles from file
-        # retry stashed articles
-        print("loading list of stashed articles...", end="\r")
-        load_mt("stashed_artls")
         if stashed_artls:
-            print("loading list of stashed articles... retrying...")
+            print("retrying stashed articles...")
             download_artls_mt(stashed_artls)
         else:
-            print("loading list of stashed articles... nothing to retry")
+            print("no stashed articles found")
 
         # read list of sites from file
         print("loading sites to parse...")
