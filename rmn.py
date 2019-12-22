@@ -188,7 +188,7 @@ def download_artls_mt(artls):
             if downloaded_artls[title] or downloaded_artls[url]:
                 downloaded_lock.release()
 
-                pending_lock.acquire
+                pending_lock.acquire()
                 try:
                     pending_artls.remove((title, url, site_name))
                 except KeyError:
@@ -236,6 +236,7 @@ def download_artls_mt(artls):
 
                     print("downloading %s %s... stashed" % (time, title))
         else:
+            print("%s %s permanently stashed" % (time, title))
             stashed_lock.release()
 
     acq_datetime()
