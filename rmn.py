@@ -17,8 +17,8 @@ import threading
 
 
 rmapi_loc = "~/go/bin/rmapi"  # rmapi location
-sites = []  # list of sites
 cwpath = os.getcwd()+"/"  # working path
+
 pdf_options = {
     'page-height': '6.4in',
     'page-width': '4.8in',
@@ -31,16 +31,6 @@ pdf_options = {
     'grayscale': '',
     'quiet': ''
 }  # pdf gen options
-stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
-pending_artls = set()  # pending articles
-downloaded_artls = defaultdict(int)  # articles downloaded in the past
-lock = threading.Lock()
-date = time = None  # date and time
-last_rdelold = None  # last r_del_old() date
-stashed_retry = 50  # max time of stashed artl download retry
-cleanup_thres = 100000  # max number of entries allowed before cleanup
-t_per_site = 10  # max number of threads per site
-t_sites = 10  # max number of threads to build sites
 n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
@@ -49,6 +39,21 @@ n_config.memoize_articles = False
 """
 """
 """
+
+sites = []  # list of sites
+stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
+pending_artls = set()  # pending articles
+downloaded_artls = defaultdict(int)  # articles downloaded in the past
+
+date = time = None  # date and time
+last_rdelold = None  # last r_del_old() date
+
+stashed_retry = 50  # max time of stashed artl download retry
+cleanup_thres = 100000  # max number of entries allowed before cleanup
+t_per_site = 10  # max number of threads per site
+t_sites = 10  # max number of threads to build sites
+
+lock = threading.Lock()
 
 
 def check_mkdir(path, retry=10):
