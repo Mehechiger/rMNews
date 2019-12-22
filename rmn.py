@@ -12,6 +12,8 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 import pickle
 from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 
 rmapi_loc = "~/go/bin/rmapi"  # rmapi location
@@ -32,10 +34,13 @@ pdf_options = {
 stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
 pending_artls = set()  # pending articles
 downloaded_artls = defaultdict(int)  # articles downloaded in the past
+lock = threading.Lock()
 date = time = None  # date and time
 last_rdelold = None  # last r_del_old() date
 stashed_retry = 50  # max time of stashed artl download retry
 cleanup_thres = 100000  # max number of entries allowed before cleanup
+t_per_site = 10  # max number of threads per site
+t_sites = 10  # max number of threads to build sites
 n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
@@ -148,7 +153,7 @@ def r_del_old(n_days=7):
             print("deleting old news... nothing to delete")
 
 
-def download_artls(artls):
+def download_artls_mt(artls):
     def saveas_pdf(title, url, path):
         check_mkdir(path)
         if exists_artl(path, title):
@@ -162,12 +167,12 @@ def download_artls(artls):
             else:
                 return False
 
-    def download_artl(title, url, site_name):
-        global stashed_artls, pending_artls, downloaded_artls, date, time
-        acq_datetime()
+    def download_artl_st(title, url, site_name):
+        global stashed_artls, pending_artls, downloaded_artls
+
+        lock.acquire()
         if stashed_artls[(title, url, site_name)] < stashed_retry:
-            print("downloading %s %s..." % (time, title), end="\r")
-            if downloaded_artls[title] or downloaded_artls[url] or saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
+            if downloaded_artls[title] or downloaded_artls[url]:
                 try:
                     pending_artls.remove((title, url, site_name))
                 except KeyError:
@@ -176,58 +181,92 @@ def download_artls(artls):
                     stashed_artls.pop((title, url, site_name))
                 except KeyError:
                     pass
-                if downloaded_artls[title] or downloaded_artls[url]:
-                    print("downloading %s %s... already downloaded" %
-                          (time, title))
-                else:
+                lock.release()
+
+                print("downloading %s %s... already downloaded" % (time, title))
+            else:
+                lock.release()
+
+                if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
+
+                    lock.acquire()
+                    try:
+                        pending_artls.remove((title, url, site_name))
+                    except KeyError:
+                        pass
+                    try:
+                        stashed_artls.pop((title, url, site_name))
+                    except KeyError:
+                        pass
                     downloaded_artls[url] = 1
                     downloaded_artls[title] = 1
-                    print("downloading %s %s... done" % (time, title))
-            else:
-                stashed_artls[(title, url, site_name)] += 1
-                print("downloading %s %s... stashed" % (time, title))
+                    lock.release()
 
-    for title, url, site_name in artls.copy():
-        download_artl(title, url, site_name)
+                    print("downloading %s %s... done" % (time, title))
+                else:
+
+                    lock.acquire()
+                    stashed_artls[(title, url, site_name)] += 1
+                    lock.release()
+
+                    print("downloading %s %s... stashed" % (time, title))
+        else:
+            lock.release()
+
+    acq_datetime()
+    with ThreadPoolExecutor(max_workers=t_per_site) as executor:
+        for title, url, site_name in artls.copy():
+            executor.submit(download_artl_st, title, url, site_name)
 
     dump("pending_artls", "stashed_artls", "downloaded_artls")
 
 
-def extr_src(lan, site_name, site_url, kwarg=None, val=None):
-    print("processing site %s, building source..." % site_name, end="\r")
-    global pending_artls, n_config
-    n_config.language = lan
-    src = newspaper.build(site_url, config=n_config)
-    if src.size():
-        print("processing site %s, building source... downloading..." %
-              site_name, end="\r")
-        news_pool.set([src, ], threads_per_source=5)
-        news_pool.join()
-        print(
-            "processing site %s, building source... downloading... parsing..." % site_name)
-        for artl in src.articles:
-            try:
-                artl.parse()
-            except:
+def extr_src_mt(sites):
+    def extr_src_st(lan, site_name, site_url, kwarg=None, val=None):
+        global pending_artls, n_config
+        n_config.language = lan
+        src = newspaper.build(site_url, config=n_config)
+        if src.size():
+            news_pool.set([src, ], threads_per_source=t_per_site)
+            news_pool.join()
+            for artl in src.articles:
                 try:
                     artl.parse()
                 except:
-                    print("error, passed")
-                    continue
-            try:
-                if kwarg:
-                    artl_title = BeautifulSoup(artl.html, "html.parser").find(
-                        attrs={kwarg: val}).string
-                else:
-                    artl_title = artl.title
-                pending_artls.add(
-                    (artl_title.replace("/", ""), artl.url, site_name))
-            except:
-                pass
-        dump("pending_artls")
-        download_artls(pending_artls)
-    else:
-        print("processing site %s, building source... nothing to download" % site_name)
+                    try:
+                        artl.parse()
+                    except:
+                        print("error, passed")
+                        continue
+                try:
+                    if kwarg:
+                        artl_title = BeautifulSoup(artl.html, "html.parser").find(
+                            attrs={kwarg: val}).string
+                    else:
+                        artl_title = artl.title
+
+                    lock.acquire()
+                    pending_artls.add(
+                        (artl_title.replace("/", ""), artl.url, site_name))
+                    lock.release()
+
+                except:
+                    pass
+
+            lock.acquire()
+            dump("pending_artls")
+            lock.release()
+
+            print("downloading %d articles from %s" % (src.size(), site_name))
+            download_artls_mt(pending_artls)
+
+        else:
+            print("nothing to download from %s" % site_name)
+
+    with ThreadPoolExecutor(max_workers=t_sites) as executor:
+        print("processing %d sites..." % len(sites))
+        for site in sites:
+            executor.submit(extr_src_st, *site)
 
 
 def load(*somethings):
@@ -268,11 +307,6 @@ if __name__ == "__main__":
         # del old news
         r_del_old()
 
-        # read list of sites from file
-        print("loading sites to parse...")
-        with open(cwpath+"sites.txt", "r") as f:
-            sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
-
         # load downloaded articles from file
         print("loading list of downloaded articles...")
         load("downloaded_artls")
@@ -283,7 +317,7 @@ if __name__ == "__main__":
         load("pending_artls")
         if pending_artls:
             print("loading list of unfinished pending articles... retrying...")
-            download_artls(pending_artls)
+            download_artls_mt(pending_artls)
         else:
             print("loading list of unfinished pending articles... nothing to retry")
 
@@ -293,12 +327,15 @@ if __name__ == "__main__":
         load("stashed_artls")
         if stashed_artls:
             print("loading list of stashed articles... retrying...")
-            download_artls(stashed_artls)
+            download_artls_mt(stashed_artls)
         else:
             print("loading list of stashed articles... nothing to retry")
 
-        for site in sites:
-            extr_src(*site)
+        # read list of sites from file
+        print("loading sites to parse...")
+        with open(cwpath+"sites.txt", "r") as f:
+            sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
+        extr_src_mt(sites)
 
         r_mput()
 
