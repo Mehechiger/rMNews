@@ -163,7 +163,7 @@ def r_del_old(n_days=7):
             print("deleting old news... nothing to delete")
 
 
-def download_artls_mt(artls):
+def download_artls_mt(*artls):
     def saveas_pdf(title, url, path):
         check_mkdir(path)
         if exists_artl(path, title):
@@ -239,12 +239,13 @@ def download_artls_mt(artls):
             print("%s %s permanently stashed" % (time, title))
             stashed_lock.release()
 
-    acq_datetime()
-    with ThreadPoolExecutor(max_workers=t_per_site) as executor:
-        for title, url, site_name in artls.copy():
-            executor.submit(download_artl_st, title, url, site_name)
-
-    dump_mt("pending_artls", "stashed_artls", "downloaded_artls")
+    artls = set(artl for it in artls for artl in it)
+    if artls:
+        acq_datetime()
+        with ThreadPoolExecutor(max_workers=t_per_site) as executor:
+            for title, url, site_name in artls:
+                executor.submit(download_artl_st, title, url, site_name)
+        dump_mt("pending_artls", "stashed_artls", "downloaded_artls")
 
 
 def extr_src_mt(sites):
@@ -359,17 +360,21 @@ if __name__ == "__main__":
         print("loading list of downloaded, pending and stashed articles...")
         load_mt("downloaded_artls", "pending_artls", "stashed_artls")
 
+        retry = False
         if pending_artls:
-            print("retrying unfinished pending articles...")
-            download_artls_mt(pending_artls)
+            retry = True
+            print("%d article(s) pending, will retry..." % len(pending_artls))
         else:
-            print("no pending articles found")
-
+            print("no pending articles")
         if stashed_artls:
-            print("retrying stashed articles...")
-            download_artls_mt(stashed_artls)
+            retry = True
+            print("%d article(s) stashed, will retry..." % len(stashed_artls))
         else:
-            print("no stashed articles found")
+            print("no stashed articles")
+
+        if retry:
+            print("retrying...")
+            download_artls_mt(pending_artls, stashed_artls)
 
         # read list of sites from file
         print("loading sites to parse...")
