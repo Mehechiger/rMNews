@@ -192,7 +192,7 @@ def download_artls_mt(*artls):
             stashed_lock.release()
 
             downloaded_lock.acquire()
-            if downloaded_artls[title] or downloaded_artls[url]:
+            if downloaded_artls[url]:
                 downloaded_lock.release()
 
                 pending_lock.acquire()
@@ -231,7 +231,6 @@ def download_artls_mt(*artls):
 
                     downloaded_lock.acquire()
                     downloaded_artls[url] = 1
-                    downloaded_artls[title] = 1
                     downloaded_lock.release()
 
                     print("downloading %s %s... done" % (time, title))
