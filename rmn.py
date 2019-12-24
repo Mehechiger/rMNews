@@ -35,9 +35,9 @@ n_config = newspaper.Config()
 n_config.browser_user_agent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/50.0.2661.102 Safari/537.36'
 n_config.fetch_images = False
 """
-"""
-"""
 n_config.memoize_articles = False
+"""
+"""
 """
 
 sites = []  # list of sites
@@ -234,12 +234,19 @@ def download_artls_mt(*artls):
                     stashed_artls[(title, url, site_name)] += 1
                     stashed_lock.release()
 
+                    pending_lock.acquire()
+                    try:
+                        pending_artls.remove((title, url, site_name))
+                    except KeyError:
+                        pass
+                    pending_lock.release()
+
                     print("downloading %s %s... stashed" % (time, title))
         else:
             print("%s %s permanently stashed" % (time, title))
             stashed_lock.release()
 
-    artls = set(artl for it in artls for artl in it)
+    artls = [artl for it in artls for artl in it]
     if artls:
         acq_datetime()
         with ThreadPoolExecutor(max_workers=t_per_site) as executor:
