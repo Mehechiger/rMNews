@@ -140,7 +140,7 @@ def r_rmtree(*r_paths):
     rmapi("rm %s" % r_trees)
 
 
-def r_del_old(n_days=7):
+def r_del_old(n_days=3):
     global last_rdelold
     last_rdelold = last_rdelold if last_rdelold else datetime.now()-timedelta(hours=6)
     if datetime.now() > last_rdelold+timedelta(hours=6):
