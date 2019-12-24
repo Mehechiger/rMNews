@@ -114,7 +114,7 @@ def r_mput(retry=10):
 
     mput_errors = "failed to create directory|failed to upload file"
     for i in range(retry):
-        if re.compile(mput_errors).search(rmapi("mkdir News", "mput /News")) == None:
+        if not re.compile(mput_errors).search(rmapi("mkdir News", "mput /News")):
             break
 
     rmtree(path)
@@ -123,21 +123,28 @@ def r_mput(retry=10):
 
 
 def r_rmtree(*r_paths):
-    def r_tree(r_path):
-        ls_list = rmapi("ls \"%s\"" % r_path)
+    def r_tree(r_path, cond=lambda x: 1):
+        ls_list = rmapi("ls \"%s\"" % r_path) if cond(r_path) else ""
         ds = re.compile("(?<=\[d\]\t).*(?=\n)").findall(ls_list)
         fs = re.compile("(?<=\[f\]\t).*(?=\n)").findall(ls_list)
-        br = " ".join("\"%s/%s\"" % (r_path, f) for f in fs)
+        br = " ".join("\"%s/%s\"" % (r_path, f)
+                      for f in fs if cond(r_path) and cond(f))
         if ds:
             for d in ds:
-                return "%s %s \"%s/%s\"" % (br, r_tree("%s/%s" % (r_path, d)), r_path, d)
+                return "%s %s \"%s/%s\"" % (br, r_tree("%s/%s" % (r_path, d), cond=cond), r_path, d) if cond(r_path) and cond(d) else br
         else:
             return br
 
     r_trees = ""
     for r_path in r_paths:
         r_trees = "%s %s \"%s\"" % (r_trees, "".join(r_tree(r_path)), r_path)
-    rmapi("rm %s" % r_trees)
+    if re.compile("Uknown rune").search(rmapi("rm %s" % r_trees)):
+        print("Error deleting articles from cloud: Uknown rune. retrying with restricted mode...")
+        r_trees = ""
+        for r_path in r_paths:
+            r_trees = "%s %s" % (r_trees, "".join(
+                r_tree(r_path, cond=lambda x: re.search("\"", x) == None)))
+        print(rmapi("rm %s" % r_trees))
 
 
 def r_del_old(n_days=3):
@@ -281,7 +288,7 @@ def extr_src_mt(sites):
 
                     pending_lock.acquire()
                     pending_artls.add(
-                        (artl_title.replace("/", ""), artl.url, site_name))
+                        (re.compile("[/\"\']").sub("", artl_title), artl.url, site_name))
                     pending_lock.release()
 
                 except:
