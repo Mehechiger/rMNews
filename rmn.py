@@ -249,8 +249,10 @@ def download_artls_mt(*artls):
 
                     print("downloading %s %s... stashed" % (time, title))
         elif stashed_artls[(title, url, site_name)] == stashed_retry:
-            print("%s %s permanently stashed" % (time, title))
+            stashed_artls[(title, url, site_name)] += 1
             stashed_lock.release()
+
+            print("%s %s permanently stashed" % (time, title))
         else:
             stashed_lock.release()
 
