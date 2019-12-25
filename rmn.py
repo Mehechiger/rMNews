@@ -248,8 +248,10 @@ def download_artls_mt(*artls):
                     pending_lock.release()
 
                     print("downloading %s %s... stashed" % (time, title))
-        else:
+        elif stashed_artls[(title, url, site_name)] == stashed_retry:
             print("%s %s permanently stashed" % (time, title))
+            stashed_lock.release()
+        else:
             stashed_lock.release()
 
     artls = [artl for it in artls for artl in it]
