@@ -195,13 +195,6 @@ def download_artls_mt(*artls):
             if downloaded_artls[url]:
                 downloaded_lock.release()
 
-                pending_lock.acquire()
-                try:
-                    pending_artls.remove((title, url, site_name))
-                except KeyError:
-                    pass
-                pending_lock.release()
-
                 stashed_lock.acquire()
                 try:
                     stashed_artls.pop((title, url, site_name))
@@ -214,13 +207,6 @@ def download_artls_mt(*artls):
                 downloaded_lock.release()
 
                 if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
-
-                    pending_lock.acquire()
-                    try:
-                        pending_artls.remove((title, url, site_name))
-                    except KeyError:
-                        pass
-                    pending_lock.release()
 
                     stashed_lock.acquire()
                     try:
@@ -240,13 +226,6 @@ def download_artls_mt(*artls):
                     stashed_artls[(title, url, site_name)] += 1
                     stashed_lock.release()
 
-                    pending_lock.acquire()
-                    try:
-                        pending_artls.remove((title, url, site_name))
-                    except KeyError:
-                        pass
-                    pending_lock.release()
-
                     print("downloading %s %s... stashed" % (time, title))
         elif stashed_artls[(title, url, site_name)] == stashed_retry:
             stashed_artls[(title, url, site_name)] += 1
@@ -255,6 +234,13 @@ def download_artls_mt(*artls):
             print("%s %s permanently stashed" % (time, title))
         else:
             stashed_lock.release()
+
+        pending_lock.acquire()
+        try:
+            pending_artls.remove((title, url, site_name))
+        except KeyError:
+            pass
+        pending_lock.release()
 
     artls = [artl for it in artls for artl in it]
     if artls:
