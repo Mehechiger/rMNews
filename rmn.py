@@ -383,9 +383,12 @@ if __name__ == "__main__":
             print("%d article(s) pending, will retry..." % len(pending_artls))
         else:
             print("no pending articles")
-        if stashed_artls:
+
+        temp_stashed = [value for value in stashed_artls.values()
+                        if value <= stashed_retry]
+        if temp_stashed:
             retry = True
-            print("%d article(s) stashed, will retry..." % len(stashed_artls))
+            print("%d article(s) stashed, will retry..." % len(temp_stashed))
         else:
             print("no stashed articles")
 
