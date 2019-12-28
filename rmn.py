@@ -41,7 +41,9 @@ n_config.memoize_articles = False
 """
 
 sites = []  # list of sites
-stashed_artls = defaultdict(int)  # articles stashed to be downloaded later
+# articles stashed to be downloaded later
+stashed_artls = defaultdict(lambda: (int(), datetime.now()))
+stashed_artls['sites'] = set()  # sites stashed
 pending_artls = set()  # pending articles
 downloaded_artls = defaultdict(int)  # articles downloaded in the past
 
@@ -188,25 +190,23 @@ def download_artls_mt(*artls):
         global stashed_artls, pending_artls, downloaded_artls
 
         stashed_lock.acquire()
-        if stashed_artls[(title, url, site_name)] < stashed_retry:
-            stashed_lock.release()
+        stashed_retried, stashed_time = stashed_artls[(title, url, site_name)]
+        stashed_lock.release()
 
-            downloaded_lock.acquire()
-            if downloaded_artls[url]:
-                downloaded_lock.release()
+        if stashed_retried < stashed_retry:
+            if stashed_retried > stashed_retry/5:
 
                 stashed_lock.acquire()
-                try:
-                    stashed_artls.pop((title, url, site_name))
-                except KeyError:
-                    pass
+                if not site_name in stashed_artls['sites']:
+                    stashed_artls['sites'].add(site_name)
+                    print("site %s now in the cooling list" % site_name)
                 stashed_lock.release()
 
-                print("downloading %s %s... already downloaded" % (time, title))
-            else:
-                downloaded_lock.release()
+            elif stashed_time+timedelta(hours=stashed_retried) < datetime.now():
 
-                if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
+                downloaded_lock.acquire()
+                if downloaded_artls[url]:
+                    downloaded_lock.release()
 
                     stashed_lock.acquire()
                     try:
@@ -215,25 +215,52 @@ def download_artls_mt(*artls):
                         pass
                     stashed_lock.release()
 
-                    downloaded_lock.acquire()
-                    downloaded_artls[url] = 1
+                    print("downloading %s %s... already downloaded" %
+                          (time, title))
+                else:
                     downloaded_lock.release()
 
-                    print("downloading %s %s... done" % (time, title))
-                else:
+                    if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
 
-                    stashed_lock.acquire()
-                    stashed_artls[(title, url, site_name)] += 1
-                    stashed_lock.release()
+                        stashed_lock.acquire()
+                        try:
+                            stashed_artls.pop((title, url, site_name))
+                        except KeyError:
+                            pass
+                        try:
+                            stashed_artls['site'].remove(site_name)
+                            print("site %s now defrosted" % site_name)
+                        except KeyError:
+                            pass
+                        stashed_lock.release()
 
-                    print("downloading %s %s... stashed" % (time, title))
-        elif stashed_artls[(title, url, site_name)] == stashed_retry:
-            stashed_artls[(title, url, site_name)] += 1
+                        downloaded_lock.acquire()
+                        downloaded_artls[url] = 1
+                        downloaded_lock.release()
+
+                        print("downloading %s %s... done" % (time, title))
+                    else:
+
+                        stashed_lock.acquire()
+                        stashed_artls[(title, url, site_name)
+                                      ][1] = datetime.now()
+                        stashed_artls[(title, url, site_name)][0] += 1
+                        stashed_lock.release()
+
+                        print("downloading %s %s... stashed" % (time, title))
+            else:
+                print("%s %s freshly stashed, cooling down for %s before retry..." % (
+                    time, title, stashed_time+timedelta(hours=stashed_retried)-datetime.now()))
+        elif stashed_retried == stashed_retry:
+
+            stashed_lock.acquire()
+            stashed_artls[(title, url, site_name)][1] = datetime.now()
+            stashed_artls[(title, url, site_name)][0] += 1
             stashed_lock.release()
 
             print("%s %s permanently stashed" % (time, title))
         else:
-            stashed_lock.release()
+            pass
 
         pending_lock.acquire()
         try:
@@ -294,7 +321,13 @@ def extr_src_mt(sites):
     with ThreadPoolExecutor(max_workers=t_sites) as executor:
         print("processing %d sites..." % len(sites))
         for site in sites:
-            executor.submit(extr_src_st, *site)
+            stashed_lock.acquire()
+            if site[1] in stashed_artls['sites']:
+                stashed_lock.release()
+                print("site %s is in the cooling list, skipped..." % site[1])
+            else:
+                stashed_lock.release()
+                executor.submit(extr_src_st, *site)
 
 
 def load_mt(*somethings):
@@ -371,7 +404,7 @@ if __name__ == "__main__":
             print("no pending articles")
 
         temp_stashed = [value for value in stashed_artls.values()
-                        if value <= stashed_retry]
+                        if type(value) == tuple and value[0] <= stashed_retry]
         if temp_stashed:
             retry = True
             print("%d article(s) stashed, will retry..." % len(temp_stashed))
@@ -388,6 +421,8 @@ if __name__ == "__main__":
             sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
         extr_src_mt(sites)
 
+        """
         r_mput()
+        """
 
         cleanup_mt("downloaded_artls", "stashed_artls", "pending_artls")
