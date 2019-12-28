@@ -189,13 +189,10 @@ def download_artls_mt(*artls):
     def download_artl_st(title, url, site_name):
         global stashed_artls, pending_artls, downloaded_artls
 
-        print("1", title)
         stashed_lock.acquire()
-        print("2", title)
         stashed_retried, stashed_time = stashed_artls[(title, url, site_name)]
-        print("3", title)
+        print(stashed_retried, stashed_time)
         stashed_lock.release()
-        print("4", title)
 
         if stashed_retried < stashed_retry:
             if stashed_retried > stashed_retry/5:
