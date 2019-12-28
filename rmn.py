@@ -203,7 +203,6 @@ def download_artls_mt(*artls):
                 stashed_lock.release()
 
             elif stashed_time+timedelta(hours=stashed_retried) < datetime.now():
-                print("k", title)
 
                 downloaded_lock.acquire()
                 if downloaded_artls[url]:
@@ -220,6 +219,7 @@ def download_artls_mt(*artls):
                           (time, title))
                 else:
                     downloaded_lock.release()
+                    print("k", title)
 
                     if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
 
