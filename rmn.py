@@ -178,6 +178,7 @@ def download_artls_mt(*artls):
         if exists_artl(path, title):
             return True
         try:
+            print("k", title)
             pdfkit.from_url(url, path+title+".pdf", pdf_options)
             return True
         except OSError:
@@ -221,7 +222,6 @@ def download_artls_mt(*artls):
                     downloaded_lock.release()
 
                     if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
-                        print("k", title)
 
                         stashed_lock.acquire()
                         try:
