@@ -191,13 +191,13 @@ def download_artls_mt(*artls):
 
         stashed_lock.acquire()
         stashed_retried, stashed_time = stashed_artls[(title, url, site_name)]
-        print(stashed_retried, stashed_time)
         stashed_lock.release()
 
         if stashed_retried < stashed_retry:
             if stashed_retried > stashed_retry/5:
 
                 stashed_lock.acquire()
+                print("k", title)
                 if not site_name in stashed_artls['sites']:
                     stashed_artls['sites'].add(site_name)
                     print("site %s now in the cooling list" % site_name)
