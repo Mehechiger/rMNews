@@ -194,8 +194,8 @@ def download_artls_mt(*artls):
         stashed_lock.release()
 
         if stashed_retried < stashed_retry:
-            print("k", title)
             if stashed_retried > stashed_retry/5:
+                print("k", title)
 
                 stashed_lock.acquire()
                 if not site_name in stashed_artls['sites']:
