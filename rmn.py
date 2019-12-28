@@ -178,8 +178,8 @@ def download_artls_mt(*artls):
         if exists_artl(path, title):
             return True
         try:
-            print("k", title)
             pdfkit.from_url(url, path+title+".pdf", pdf_options)
+            print("k", title)
             return True
         except OSError:
             if os.path.exists(path+title+".pdf"):
