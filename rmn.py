@@ -421,8 +421,6 @@ if __name__ == "__main__":
             sites = [line.split("\t") for line in f.read().split("\n")[:-1]]
         extr_src_mt(sites)
 
-        """
         r_mput()
-        """
 
         cleanup_mt("downloaded_artls", "stashed_artls", "pending_artls")
