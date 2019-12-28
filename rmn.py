@@ -195,7 +195,6 @@ def download_artls_mt(*artls):
 
         if stashed_retried < stashed_retry:
             if stashed_retried > stashed_retry/5:
-                print("k", title)
 
                 stashed_lock.acquire()
                 if not site_name in stashed_artls['sites']:
@@ -204,6 +203,7 @@ def download_artls_mt(*artls):
                 stashed_lock.release()
 
             elif stashed_time+timedelta(hours=stashed_retried) < datetime.now():
+                print("k", title)
 
                 downloaded_lock.acquire()
                 if downloaded_artls[url]:
