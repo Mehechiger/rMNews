@@ -219,9 +219,9 @@ def download_artls_mt(*artls):
                           (time, title))
                 else:
                     downloaded_lock.release()
-                    print("k", title)
 
                     if saveas_pdf("%s %s" % (time, title), url, "%s/downloaded/%s %s/" % (cwpath, date, site_name)):
+                        print("k", title)
 
                         stashed_lock.acquire()
                         try:
